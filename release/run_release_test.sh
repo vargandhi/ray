@@ -50,9 +50,7 @@ if [ -n "${RAY_COMMIT_OF_WHEEL-}" ]; then
 fi
 
 if [ -z "${NO_INSTALL}" ]; then
-  pip install --use-deprecated=legacy-resolver -q -r requirements.txt
-  pip install -q -U boto3 botocore bazel-runfiles
-  pip install --use-deprecated=legacy-resolver -c requirements.txt -e .
+  pip install --use-deprecated=legacy-resolver -c requirements_buildkite.txt -e .
 fi
 
 RETRY_NUM=0
