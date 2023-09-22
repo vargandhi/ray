@@ -98,7 +98,8 @@ public class ServeControllerClient {
     }
 
     if (!missingOk && (endpoints == null || !endpoints.containsKey(deploymentName))) {
-      throw new RayServeException(MessageFormatter.format("Deployment {} does not exist.", deploymentName));
+      throw new RayServeException(
+          MessageFormatter.format("Deployment {} does not exist.", deploymentName));
     }
 
     DeploymentHandle handle = new DeploymentHandle(deploymentName, null, null, null);
@@ -203,7 +204,8 @@ public class ServeControllerClient {
     }
     if (isTimeout) {
       throw new RayServeException(
-          MessageFormatter.format("Deployment {} did not become HEALTHY after {}s.", name, timeoutS));
+          MessageFormatter.format(
+              "Deployment {} did not become HEALTHY after {}s.", name, timeoutS));
     }
   }
 
