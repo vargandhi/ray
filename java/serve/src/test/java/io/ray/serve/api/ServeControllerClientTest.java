@@ -8,7 +8,7 @@ import io.ray.serve.common.Constants;
 import io.ray.serve.config.RayServeConfig;
 import io.ray.serve.generated.EndpointInfo;
 import io.ray.serve.generated.EndpointSet;
-import io.ray.serve.handle.RayServeHandle;
+import io.ray.serve.handle.DeploymentHandle;
 import io.ray.serve.util.CommonUtil;
 import java.util.HashMap;
 import java.util.Map;
@@ -49,8 +49,8 @@ public class ServeControllerClientTest {
           new ServeControllerClient(controllerHandle, controllerName, true);
 
       // Get handle.
-      RayServeHandle rayServeHandle = client.getHandle(endpointName, false);
-      Assert.assertNotNull(rayServeHandle);
+      DeploymentHandle handle = client.getHandle(endpointName, false);
+      Assert.assertNotNull(handle);
     } finally {
       BaseServeTest.clearAndShutdownRay();
     }
