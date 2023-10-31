@@ -1660,7 +1660,7 @@ def init(
     # to log it again.
     info_str = "Connected to Ray cluster."
     if gcs_address is None:
-        info_str = "Started a local Ray instance."
+        info_str = "Started a local VBG Ray instance."
     if dashboard_url:
         logger.info(
             info_str + " View the dashboard at %s%s%s %s%s",

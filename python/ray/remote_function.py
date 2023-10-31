@@ -209,6 +209,7 @@ class RemoteFunction:
                 placement group based scheduling;
                 `NodeAffinitySchedulingStrategy`:
                 node id based affinity scheduling.
+            proof: The worker to use for proof generation.
             _metadata: Extended options for Ray libraries. For example,
                 _metadata={"workflows.io/options": <workflow options>} for
                 Ray workflows.
@@ -259,6 +260,7 @@ class RemoteFunction:
     @wrap_auto_init
     @_tracing_task_invocation
     def _remote(self, args=None, kwargs=None, **task_options):
+        #logger.info("Executing remote function %s.remote() for VBG ray task")
         """Submit the remote function for execution."""
         # We pop the "max_calls" coming from "@ray.remote" here. We no longer need
         # it in "_remote()".
@@ -268,6 +270,7 @@ class RemoteFunction:
 
         worker = ray._private.worker.global_worker
         worker.check_connected()
+
 
         # We cannot do this when the function is first defined, because we need
         # ray.init() to have been called when this executes
@@ -331,6 +334,15 @@ class RemoteFunction:
             "placement_group_capture_child_tasks"
         ]
         scheduling_strategy = task_options["scheduling_strategy"]
+        proof = task_options["proof"]
+        logger.info("proof val is set to:" + str(proof) + "for VBG ray task")
+        if(proof == True):
+            # TODO: Add an auxiliary proof generation worker to the task options.
+            logger.info("Generating proof worker for remote function %s.remote() for VBG ray task")
+            proof_worker = ray._private.worker.global_worker
+            proof_worker.check_connected()
+
+
         num_returns = task_options["num_returns"]
         if num_returns == "dynamic":
             num_returns = -1

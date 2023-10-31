@@ -145,6 +145,7 @@ _common_options = {
             NodeLabelSchedulingStrategy,
         )
     ),
+    "proof": Option((bool, type(None))),
     "_metadata": Option((dict, type(None))),
 }
 
