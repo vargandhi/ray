@@ -121,16 +121,33 @@ class RemoteFunction:
             self._default_options["runtime_env"] = self._runtime_env
 
         self._language = language
+        
         self._function = function
+        self._proof_function = function
+
         self._function_signature = None
+        self._proof_function_signature = None
+        
         # Guards trace injection to enforce exactly once semantics
         self._inject_lock = Lock()
+        self._proof_inject_lock = Lock()
+
         self._function_name = function.__module__ + "." + function.__name__
+        self._proof_function_name = function.__module__ + "." + function.__name__
+
         self._function_descriptor = function_descriptor
+        self._proof_function_descriptor = function_descriptor
+
         self._is_cross_language = language != Language.PYTHON
+        
         self._decorator = getattr(function, "__ray_invocation_decorator__", None)
+        self._decorator = getattr(function, "__ray_proof_invocation_decorator__", None)
+
         self._last_export_session_and_job = None
+        self._proof_last_export_session_and_job = None
+
         self._uuid = uuid.uuid4()
+        self._proof_uuid = uuid.uuid4()
 
         # Override task.remote's signature and docstring
         @wraps(function)
@@ -138,6 +155,7 @@ class RemoteFunction:
             return self._remote(args=args, kwargs=kwargs, **self._default_options)
 
         self.remote = _remote_proxy
+        self.proof_remote = _remote_proxy
 
     def __call__(self, *args, **kwargs):
         raise TypeError(
@@ -226,6 +244,7 @@ class RemoteFunction:
         """
 
         func_cls = self
+        
 
         # override original options
         default_options = self._default_options.copy()
@@ -270,8 +289,16 @@ class RemoteFunction:
 
         worker = ray._private.worker.global_worker
         worker.check_connected()
-
-
+        
+        proof_worker = None
+        proof = task_options["proof"] 
+        logger.info("proof val is set to:" + str(proof) + " for VBG ray task")
+        if(proof == True):
+            # TODO: Add an auxiliary proof generation worker to the task options.
+            logger.info("Generating proof worker for remote function %s.remote() for VBG ray task")
+            proof_worker = ray._private.worker.global_worker
+            proof_worker.check_connected()
+        
         # We cannot do this when the function is first defined, because we need
         # ray.init() to have been called when this executes
         with self._inject_lock:
@@ -280,12 +307,20 @@ class RemoteFunction:
                 self._function_signature = ray._private.signature.extract_signature(
                     self._function
                 )
+        
+        with self._proof_inject_lock:
+            if self._proof_function_signature is None:
+                self._function = _inject_tracing_into_function(self._proof_function)
+                self._proof_function_signature = ray._private.signature.extract_signature(
+                    self._proof_function
+                )
+                
 
         # If this function was not exported in this session and job, we need to
         # export this function again, because the current GCS doesn't have it.
         if (
             not self._is_cross_language
-            and self._last_export_session_and_job != worker.current_session_and_job
+            and self._last_export_session_and_job != worker.current_session_and_job             
         ):
             self._function_descriptor = PythonFunctionDescriptor.from_function(
                 self._function, self._uuid
@@ -306,6 +341,21 @@ class RemoteFunction:
 
             self._last_export_session_and_job = worker.current_session_and_job
             worker.function_actor_manager.export(self)
+
+        if ( proof_worker != None 
+            and not self._is_cross_language
+            and self._proof_last_export_session_and_job != proof_worker.current_session_and_job             
+        ):
+            self._proof_function_descriptor = PythonFunctionDescriptor.from_function(
+                self._proof_function, self._proof_uuid
+            )
+            self._proof_pickled_function = pickle_dumps(
+                self._proof_function,
+                f"Could not serialize the function {self._proof_function_descriptor.repr}",
+            )
+            
+            self._proof_last_export_session_and_job = proof_worker.current_session_and_job
+            proof_worker.function_actor_manager.export(self)
 
         kwargs = {} if kwargs is None else kwargs
         args = [] if args is None else args
@@ -334,15 +384,6 @@ class RemoteFunction:
             "placement_group_capture_child_tasks"
         ]
         scheduling_strategy = task_options["scheduling_strategy"]
-        proof = task_options["proof"]
-        logger.info("proof val is set to:" + str(proof) + "for VBG ray task")
-        if(proof == True):
-            # TODO: Add an auxiliary proof generation worker to the task options.
-            logger.info("Generating proof worker for remote function %s.remote() for VBG ray task")
-            proof_worker = ray._private.worker.global_worker
-            proof_worker.check_connected()
-
-
         num_returns = task_options["num_returns"]
         if num_returns == "dynamic":
             num_returns = -1
